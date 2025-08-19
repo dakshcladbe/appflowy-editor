@@ -8,13 +8,14 @@ import 'package:string_validator/string_validator.dart';
 
 import '../../util/file_picker/file_picker_impl.dart';
 import 'base64_image.dart';
+import 'package:cladbe_shared/cladbe_shared.dart';
 
 enum ImageFromFileStatus {
   notSelected,
   selected,
 }
 
-typedef OnInsertImage = void Function(String url);
+typedef OnInsertImage = void Function(AppDocument url);
 
 void showImageMenu(
   OverlayState container,
@@ -29,7 +30,7 @@ void showImageMenu(
   late final OverlayEntry imageMenuEntry;
 
   void insertImage(
-    String url,
+    AppDocument url,
   ) {
     if (onInsertImage != null) {
       onInsertImage(url);
@@ -99,8 +100,8 @@ class UploadImageMenu extends StatefulWidget {
   final Color uploadIconColor;
   final Color uploadButtonTextColor;
   final double width;
-  final void Function(String text) onSubmitted;
-  final void Function(String text) onUpload;
+  final void Function(AppDocument text) onSubmitted;
+  final void Function(AppDocument text) onUpload;
 
   @override
   State<UploadImageMenu> createState() => _UploadImageMenuState();
@@ -200,7 +201,7 @@ class _UploadImageMenuState extends State<UploadImageMenu> {
       controller: _textEditingController,
       onSubmitted: (text) {
         if (_validateUrl(text)) {
-          widget.onSubmitted(text);
+          // widget.onSubmitted(text);
         } else {
           setState(() {
             isUrlValid = false;
@@ -264,13 +265,13 @@ class _UploadImageMenuState extends State<UploadImageMenu> {
         ),
         onPressed: () async {
           if (_imagePathOrContent != null) {
-            widget.onUpload(
-              _imagePathOrContent!,
-            );
+            // widget.onUpload(
+            //   _imagePathOrContent!,
+            // );
           } else if (_validateUrl(_textEditingController.text)) {
-            widget.onUpload(
-              _textEditingController.text,
-            );
+            // widget.onUpload(
+            //   _textEditingController.text,
+            // );
           } else {
             setState(() {
               isUrlValid = false;
@@ -402,7 +403,7 @@ class _UploadImageMenuState extends State<UploadImageMenu> {
 
 extension InsertImage on EditorState {
   Future<void> insertImageNode(
-    String src,
+    AppDocument src,
   ) async {
     final selection = this.selection;
     if (selection == null || !selection.isCollapsed) {
@@ -420,7 +421,12 @@ extension InsertImage on EditorState {
         ..insertNode(
           node.path,
           imageNode(
-            url: src,
+            document: AppDocument(
+              name: "testinginimage",
+              documentPath: "documentPath",
+              bucketProvider: "bucketProvider",
+              hashingCode: "hashingCode",
+            ),
           ),
         )
         ..deleteNode(node);
@@ -428,7 +434,7 @@ extension InsertImage on EditorState {
       transaction.insertNode(
         node.path.next,
         imageNode(
-          url: src,
+          document: src,
         ),
       );
     }

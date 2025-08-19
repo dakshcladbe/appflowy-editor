@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' show parse;
+import 'package:cladbe_shared/cladbe_shared.dart' hide Node;
 
 class DocumentHTMLDecoder extends Converter<String, Document> {
   DocumentHTMLDecoder();
@@ -368,7 +369,12 @@ class DocumentHTMLDecoder extends Converter<String, Document> {
     }
     // only support network image
     return imageNode(
-      url: src,
+      document: AppDocument(
+        name: "name",
+        documentPath: "documentPath",
+        bucketProvider: "bucketProvider",
+        hashingCode: "hashingCode",
+      ),
     );
   }
 

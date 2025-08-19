@@ -23,7 +23,7 @@ class HTMLImageNodeParser extends HTMLNodeParser {
     required List<HTMLNodeParser> encodeParsers,
   }) {
     final anchor = dom.Element.tag(HTMLTags.image);
-    anchor.attributes['src'] = node.attributes[ImageBlockKeys.url];
+    anchor.attributes['src'] = node.attributes[ImageBlockKeys.appdocument];
 
     final height = node.attributes[ImageBlockKeys.height];
     if (height != null) {

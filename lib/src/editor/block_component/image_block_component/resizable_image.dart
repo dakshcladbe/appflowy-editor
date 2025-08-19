@@ -1,29 +1,28 @@
 import 'dart:io';
 import 'dart:math';
-
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:cladbe_shared/cladbe_shared.dart';
 import 'package:string_validator/string_validator.dart';
-
-import 'base64_image.dart';
 
 class ResizableImage extends StatefulWidget {
   const ResizableImage({
     super.key,
+    required this.document,
     required this.alignment,
     required this.editable,
     required this.onResize,
     required this.width,
-    required this.src,
     this.height,
+    this.preview = false,
   });
 
-  final String src;
+  final AppDocument document;
   final double width;
   final double? height;
   final Alignment alignment;
   final bool editable;
-
+  final bool preview;
   final void Function(double width) onResize;
 
   @override
@@ -34,11 +33,8 @@ const _kImageBlockComponentMinWidth = 30.0;
 
 class _ResizableImageState extends State<ResizableImage> {
   late double imageWidth;
-
   double initialOffset = 0;
   double moveDistance = 0;
-
-  Image? _cacheImage;
 
   @visibleForTesting
   bool onFocus = false;
@@ -46,7 +42,6 @@ class _ResizableImageState extends State<ResizableImage> {
   @override
   void initState() {
     super.initState();
-
     imageWidth = widget.width;
   }
 
@@ -71,36 +66,16 @@ class _ResizableImageState extends State<ResizableImage> {
   }
 
   Widget _buildResizableImage(BuildContext context) {
-    Widget child;
-    final src = widget.src;
-    if (isBase64(src)) {
-      // load base64 image (url is raw base64 from web)
-      _cacheImage ??= Image.memory(
-        dataFromBase64String(src),
-      );
-      child = _cacheImage!;
-    } else if (isURL(src)) {
-      // load network image
-      _cacheImage ??= Image.network(
-        widget.src,
-        width: widget.width,
-        gaplessPlayback: true,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null ||
-              loadingProgress.cumulativeBytesLoaded ==
-                  loadingProgress.expectedTotalBytes) {
-            return child;
-          }
-          return _buildLoading(context);
-        },
-        errorBuilder: (context, error, stackTrace) => _buildError(context),
-      );
-      child = _cacheImage!;
-    } else {
-      // load local file
-      _cacheImage ??= Image.file(File(src));
-      child = _cacheImage!;
-    }
+    // Delegate rendering to FileDisplay
+    final child = FileDisplay(
+      document: widget.document,
+      fit: BoxFit.contain,
+      alignment: widget.alignment,
+      width: max(_kImageBlockComponentMinWidth, imageWidth - moveDistance),
+      height: widget.height,
+      preview: widget.preview,
+    );
+
     return Stack(
       children: [
         child,
@@ -131,39 +106,6 @@ class _ResizableImageState extends State<ResizableImage> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildLoading(BuildContext context) {
-    return SizedBox(
-      height: 150,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox.fromSize(
-            size: const Size(18, 18),
-            child: const CircularProgressIndicator(),
-          ),
-          SizedBox.fromSize(
-            size: const Size(10, 10),
-          ),
-          Text(AppFlowyEditorL10n.current.loading),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError(BuildContext context) {
-    return Container(
-      height: 100,
-      width: imageWidth,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-        border: Border.all(width: 1, color: Colors.black),
-      ),
-      child: Text(AppFlowyEditorL10n.current.imageLoadFailed),
     );
   }
 
@@ -200,7 +142,6 @@ class _ResizableImageState extends State<ResizableImage> {
               max(_kImageBlockComponentMinWidth, imageWidth - moveDistance);
           initialOffset = 0;
           moveDistance = 0;
-
           widget.onResize(imageWidth);
         },
         child: MouseRegion(

@@ -1,5 +1,6 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:cladbe_shared/cladbe_shared.dart' hide Node;
 
 class MarkdownImageParserV2 extends CustomMarkdownParser {
   const MarkdownImageParserV2();
@@ -17,7 +18,14 @@ class MarkdownImageParserV2 extends CustomMarkdownParser {
 
     if (element.attributes['src'] != null) {
       return [
-        imageNode(url: element.attributes['src']!),
+        imageNode(
+          document: AppDocument(
+            name: "name",
+            documentPath: "documentPath",
+            bucketProvider: "bucketProvider",
+            hashingCode: "hashingCode",
+          ),
+        ),
       ];
     }
 
@@ -32,7 +40,14 @@ class MarkdownImageParserV2 extends CustomMarkdownParser {
     }
 
     return [
-      imageNode(url: ec.attributes['src']!),
+      imageNode(
+        document: AppDocument(
+          name: "name",
+          documentPath: "documentPath",
+          bucketProvider: "bucketProvider",
+          hashingCode: "hashingCode",
+        ),
+      ),
     ];
   }
 }

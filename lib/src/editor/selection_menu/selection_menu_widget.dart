@@ -231,16 +231,16 @@ class SelectionMenuStyle {
     selectionMenuItemIconColor: Color(0xFFBBC3CD),
     selectionMenuItemSelectedTextColor: Color(0xFF131720),
     selectionMenuItemSelectedIconColor: Color(0xFF131720),
-    selectionMenuItemSelectedColor: Color(0xFF00BCF0),
+    selectionMenuItemSelectedColor: Color(0xFF7578CD),
     selectionMenuUnselectedLabelColor: Color(0xFFBBC3CD),
     selectionMenuDividerColor: Color(0xFF3A3F44),
     selectionMenuLinkBorderColor: Color(0xFF3A3F44),
     selectionMenuInvalidLinkColor: Color(0xFFE53935),
-    selectionMenuButtonColor: Color(0xFF00BCF0),
+    selectionMenuButtonColor: Color(0xFF7578CD),
     selectionMenuButtonTextColor: Color(0xFFFFFFFF),
     selectionMenuButtonIconColor: Color(0xFFFFFFFF),
-    selectionMenuButtonBorderColor: Color(0xFF00BCF0),
-    selectionMenuTabIndicatorColor: Color(0xFF00BCF0),
+    selectionMenuButtonBorderColor: Color(0xFF7578CD),
+    selectionMenuTabIndicatorColor: Color(0xFF7578CD),
   );
 
   final Color selectionMenuBackgroundColor;

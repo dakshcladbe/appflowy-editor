@@ -28,7 +28,7 @@ void main() {
     testWidgets('invalidURL', (tester) async {
       await tester.buildAndPump(
         UploadImageMenu(
-          onSubmitted: (String text) {},
+          onSubmitted: (AppDocument text) {},
           onUpload: (String text) {},
         ),
       );

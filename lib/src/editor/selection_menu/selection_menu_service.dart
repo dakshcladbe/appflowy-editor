@@ -307,19 +307,19 @@ final List<SelectionMenuItem> standardSelectionMenuItems = [
       insertHeadingAfterSelection(editorState, 3);
     },
   ),
-  SelectionMenuItem(
-    getName: () => AppFlowyEditorL10n.current.image,
-    icon: (editorState, isSelected, style) => SelectionMenuIconWidget(
-      name: 'image',
-      isSelected: isSelected,
-      style: style,
-    ),
-    keywords: ['image'],
-    handler: (editorState, menuService, context) {
-      final container = Overlay.of(context, rootOverlay: true);
-      showImageMenu(container, editorState, menuService);
-    },
-  ),
+  // SelectionMenuItem(
+  //   getName: () => AppFlowyEditorL10n.current.image,
+  //   icon: (editorState, isSelected, style) => SelectionMenuIconWidget(
+  //     name: 'image',
+  //     isSelected: isSelected,
+  //     style: style,
+  //   ),
+  //   keywords: ['image'],
+  //   handler: (editorState, menuService, context) {
+  //     final container = Overlay.of(context, rootOverlay: true);
+  //     showImageMenu(container, editorState, menuService);
+  //   },
+  // ),
   SelectionMenuItem(
     getName: () => AppFlowyEditorL10n.current.bulletedList,
     icon: (editorState, isSelected, style) => SelectionMenuIconWidget(

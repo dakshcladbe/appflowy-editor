@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: AppFlowyEditorLocalizations.delegate.supportedLocales,
       debugShowCheckedModeBanner: false,
       home: const HomePage(),
-      theme: ThemeData.light(useMaterial3: true),
+      theme: ThemeData.dark(useMaterial3: true),
     );
   }
 }

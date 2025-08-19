@@ -34,12 +34,12 @@ CharacterShortcutEvent customSlashCommand(
   bool shouldInsertSlash = true,
   bool deleteKeywordsByDefault = false,
   bool singleColumn = true,
-  SelectionMenuStyle style = SelectionMenuStyle.light,
+  SelectionMenuStyle style = SelectionMenuStyle.dark,
   Set<String> supportSlashMenuNodeTypes = _defaultSupportSlashMenuNodeTypes,
 }) {
   return CharacterShortcutEvent(
-    key: 'show the slash menu',
-    character: '/',
+    key: 'show the # menu',
+    character: '#',
     handler: (editorState) => _showSlashMenu(
       editorState,
       items,
@@ -59,7 +59,7 @@ Future<bool> _showSlashMenu(
   bool shouldInsertSlash = true,
   bool singleColumn = true,
   bool deleteKeywordsByDefault = false,
-  SelectionMenuStyle style = SelectionMenuStyle.light,
+  SelectionMenuStyle style = SelectionMenuStyle.dark,
   Set<String> supportSlashMenuNodeTypes = _defaultSupportSlashMenuNodeTypes,
 }) async {
   if (PlatformExtension.isMobile) {

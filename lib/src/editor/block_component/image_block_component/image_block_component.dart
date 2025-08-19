@@ -1,37 +1,20 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cladbe_shared/cladbe_shared.dart' hide Node;
 
 class ImageBlockKeys {
   const ImageBlockKeys._();
 
   static const String type = 'image';
-
-  /// The align data of a image block.
-  ///
-  /// The value is a String.
-  /// left, center, right
   static const String align = 'align';
-
-  /// The image src of a image block.
-  ///
-  /// The value is a String.
-  /// It can be a url or a base64 string(web).
-  static const String url = 'url';
-
-  /// The height of a image block.
-  ///
-  /// The value is a double.
+  static const String appdocument = 'appdocument';
   static const String width = 'width';
-
-  /// The width of a image block.
-  ///
-  /// The value is a double.
   static const String height = 'height';
 }
 
 Node imageNode({
-  required String url,
+  required AppDocument document,
   String align = 'center',
   double? height,
   double? width,
@@ -39,7 +22,7 @@ Node imageNode({
   return Node(
     type: ImageBlockKeys.type,
     attributes: {
-      ImageBlockKeys.url: url,
+      ImageBlockKeys.appdocument: document.toMap(), // Serialize to map
       ImageBlockKeys.align: align,
       ImageBlockKeys.height: height,
       ImageBlockKeys.width: width,
@@ -51,19 +34,25 @@ typedef ImageBlockComponentMenuBuilder = Widget Function(
   Node node,
   ImageBlockComponentWidgetState state,
 );
+typedef OnImageSelectedCallback = void Function(AppDocument document);
+typedef OnImageUploadCallback = Future<String> Function(String filePath);
 
 class ImageBlockComponentBuilder extends BlockComponentBuilder {
   ImageBlockComponentBuilder({
     super.configuration,
     this.showMenu = false,
     this.menuBuilder,
+    this.onSelectedImage, // Add callback for selected image
   });
 
   /// Whether to show the menu of this block component.
   final bool showMenu;
 
-  ///
+  /// Custom menu builder for the image block.
   final ImageBlockComponentMenuBuilder? menuBuilder;
+
+  /// Callback when an image is selected
+  final OnImageSelectedCallback? onSelectedImage;
 
   @override
   BlockComponentWidget build(BlockComponentContext blockComponentContext) {
@@ -83,6 +72,7 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
       ),
       showMenu: showMenu,
       menuBuilder: menuBuilder,
+      onSelectedImage: onSelectedImage, // Pass the callback
     );
   }
 
@@ -101,12 +91,12 @@ class ImageBlockComponentWidget extends BlockComponentStatefulWidget {
     super.configuration = const BlockComponentConfiguration(),
     this.showMenu = false,
     this.menuBuilder,
+    this.onSelectedImage,
   });
 
-  /// Whether to show the menu of this block component.
   final bool showMenu;
-
   final ImageBlockComponentMenuBuilder? menuBuilder;
+  final OnImageSelectedCallback? onSelectedImage;
 
   @override
   State<ImageBlockComponentWidget> createState() =>
@@ -134,8 +124,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
   Widget build(BuildContext context) {
     final node = widget.node;
     final attributes = node.attributes;
-    final src = attributes[ImageBlockKeys.url];
-
     final alignment = AlignmentExtension.fromString(
       attributes[ImageBlockKeys.align] ?? 'center',
     );
@@ -143,20 +131,28 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
         MediaQuery.of(context).size.width;
     final height = attributes[ImageBlockKeys.height]?.toDouble();
 
-    Widget child = ResizableImage(
-      src: src,
-      width: width,
-      height: height,
-      editable: editorState.editable,
-      alignment: alignment,
-      onResize: (width) {
-        final transaction = editorState.transaction
-          ..updateNode(node, {
-            ImageBlockKeys.width: width,
-          });
-        editorState.apply(transaction);
-      },
-    );
+    // Reconstruct AppDocument from serialized map
+    final appDocumentMap =
+        attributes[ImageBlockKeys.appdocument] as Map<String, dynamic>?;
+    final appDocument =
+        appDocumentMap != null ? AppDocument.fromMap(appDocumentMap) : null;
+
+    Widget child = appDocument != null
+        ? ResizableImage(
+            document: appDocument,
+            width: width,
+            height: height,
+            alignment: alignment,
+            editable: editorState.editable,
+            onResize: (newWidth) {
+              final transaction = editorState.transaction
+                ..updateNode(node, {
+                  ImageBlockKeys.width: newWidth,
+                });
+              editorState.apply(transaction);
+            },
+          )
+        : const Center(child: Text('No image available'));
 
     child = Padding(
       key: imageKey,

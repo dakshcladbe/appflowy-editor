@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:cladbe_shared/cladbe_shared.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:network_image_mock/network_image_mock.dart';
@@ -45,7 +46,12 @@ class CustomImageMenu extends StatelessWidget {
         [0],
         [
           imageNode(
-            url: url,
+            document: AppDocument(
+              name: "testinginimage",
+              documentPath: "documentPath",
+              bucketProvider: "bucketProvider",
+              hashingCode: "hashingCode",
+            ),
             width: 400,
             height: 400,
           ),
