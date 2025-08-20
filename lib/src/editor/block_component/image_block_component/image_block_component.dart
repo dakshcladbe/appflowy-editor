@@ -63,7 +63,9 @@ typedef OnImageUploadCallback = Future<String> Function(String filePath);
 
 class ImageBlockComponentBuilder extends BlockComponentBuilder {
   ImageBlockComponentBuilder({
-    super.configuration,
+    super.configuration = const BlockComponentConfiguration(
+      padding: _customPadding, // Custom padding function
+    ),
     this.showMenu = false,
     this.menuBuilder,
     this.onSelectedImage,
@@ -72,6 +74,18 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
   final bool showMenu;
   final ImageBlockComponentMenuBuilder? menuBuilder;
   final OnImageSelectedCallback? onSelectedImage;
+
+  // Custom padding function
+  static EdgeInsets _customPadding(Node node) {
+    final isFirstNode = node.path.isNotEmpty && node.path.first == 0;
+    final isCoverImage = node.attributes['isCover'] == true;
+
+    // Set padding to 0 only for the first node that is a cover image
+    if (isFirstNode && isCoverImage) {
+      return EdgeInsets.zero;
+    }
+    return const EdgeInsets.symmetric(horizontal: 0);
+  }
 
   @override
   BlockComponentWidget build(BlockComponentContext blockComponentContext) {
@@ -148,17 +162,19 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
       attributes[ImageBlockKeys.align] ?? 'center',
     );
 
-    // Check if this is the first node (cover image) or explicitly marked as cover
+    // Check if this is the first node or cover image
     final isFirstNode = node.path.isNotEmpty && node.path.first == 0;
-    final isCoverImage = attributes['isCover'] == true || isFirstNode;
+    final isCoverImage = attributes['isCover'] == true;
 
-    // For cover images, use full screen width, otherwise use configured width
-    final width = isCoverImage
+    // Get padding from configuration
+    final padding = configuration.padding(node);
+    final horizontalPadding = padding.horizontal;
+
+    // Calculate width based on whether it's the first cover image
+    final width = (isFirstNode && isCoverImage)
         ? MediaQuery.of(context).size.width
         : (attributes[ImageBlockKeys.width]?.toDouble() ??
-            (MediaQuery.of(context).size.width -
-                configuration.padding(node).horizontal));
-
+            (MediaQuery.of(context).size.width - horizontalPadding));
     final height = attributes[ImageBlockKeys.height]?.toDouble();
 
     // Improved BoxFit parsing
@@ -176,10 +192,12 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
             document: appDocument,
             width: width,
             height: height,
+            isCover: isCoverImage,
             fit: fit,
             alignment: alignment,
             editable: editorState.editable &&
-                !isCoverImage, // Disable resize for cover images
+                !(isFirstNode &&
+                    isCoverImage), // Disable resize for first cover image
             onResize: (newWidth) {
               final transaction = editorState.transaction
                 ..updateNode(node, {
@@ -191,27 +209,16 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
         : const Center(child: Text('No image available'));
 
     // Add cover image overlay for hover actions
-    if (isCoverImage && editorState.editable) {
+    if ((isFirstNode && isCoverImage) && editorState.editable) {
       child = _buildCoverImageWithOverlay(child);
     }
 
-    // For cover images, override global padding with negative margin
-    if (isCoverImage) {
-      child = Transform.translate(
-        offset: const Offset(-150, 0), // Offset by negative padding amount
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          child: child,
-        ),
-      );
-    } else {
-      // For regular images, apply normal padding
-      child = Padding(
-        key: imageKey,
-        padding: configuration.padding(node),
-        child: child,
-      );
-    }
+    // Apply padding from configuration
+    child = Padding(
+      key: imageKey,
+      padding: padding,
+      child: child,
+    );
 
     child = BlockSelectionContainer(
       node: node,
@@ -270,7 +277,7 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     return child;
   }
 
-  /// Helper method to parse BoxFit from string
+  // Rest of the methods remain unchanged
   BoxFit _parseBoxFit(String fitString) {
     switch (fitString.toLowerCase()) {
       case 'fill':
@@ -288,16 +295,14 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
       case 'scaledown':
         return BoxFit.scaleDown;
       default:
-        return BoxFit.cover; // Default fallback
+        return BoxFit.cover;
     }
   }
 
-  /// Build cover image with hover overlay
   Widget _buildCoverImageWithOverlay(Widget imageChild) {
     return Stack(
       children: [
         imageChild,
-        // Always visible overlay for testing
         Positioned.fill(
           child: MouseRegion(
             onEnter: (_) {
@@ -345,7 +350,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     );
   }
 
-  /// Build individual cover action button
   Widget _buildCoverButton({
     required IconData icon,
     required String label,
@@ -395,45 +399,30 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     );
   }
 
-  /// Handle change cover action
   void _onChangeCover() {
-    // Call the callback if provided
     if (widget.onSelectedImage != null) {
-      // You might want to show a file picker here and then call:
       widget.onSelectedImage!();
     }
-
-    // Or you could trigger a custom event or show a dialog
-    // For now, let's just print for demonstration
     print('Change cover image requested');
   }
 
-  /// Handle delete cover action
   void _onDeleteCover() {
-    // Remove the cover image node
     final transaction = editorState.transaction..deleteNode(widget.node);
     editorState.apply(transaction);
   }
 
   @override
   Position start() => Position(path: widget.node.path, offset: 0);
-
   @override
   Position end() => Position(path: widget.node.path, offset: 1);
-
   @override
   Position getPositionInOffset(Offset start) => end();
-
   @override
   bool get shouldCursorBlink => false;
-
   @override
   CursorStyle get cursorStyle => CursorStyle.cover;
-
   @override
-  Rect getBlockRect({
-    bool shiftWithBaseOffset = false,
-  }) {
+  Rect getBlockRect({bool shiftWithBaseOffset = false}) {
     final imageBox = imageKey.currentContext?.findRenderObject();
     if (imageBox is RenderBox) {
       return Offset.zero & imageBox.size;
@@ -478,12 +467,8 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
         startOffset: 0,
         endOffset: 1,
       );
-
   @override
-  Offset localToGlobal(
-    Offset offset, {
-    bool shiftWithBaseOffset = false,
-  }) =>
+  Offset localToGlobal(Offset offset, {bool shiftWithBaseOffset = false}) =>
       _renderBox!.localToGlobal(offset);
 }
 

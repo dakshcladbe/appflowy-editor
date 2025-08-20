@@ -16,6 +16,7 @@ class ResizableImage extends StatefulWidget {
     this.height,
     this.preview = false,
     required this.fit,
+    required this.isCover,
   });
 
   final AppDocument document;
@@ -26,6 +27,7 @@ class ResizableImage extends StatefulWidget {
   final bool preview;
   final void Function(double width) onResize;
   final BoxFit fit;
+  final bool isCover;
 
   @override
   State<ResizableImage> createState() => _ResizableImageState();
@@ -77,13 +79,16 @@ class _ResizableImageState extends State<ResizableImage> {
   Widget _buildResizableImage(BuildContext context) {
     final displayWidth = max(_kImageBlockComponentMinWidth, currentWidth);
 
-    final child = FileDisplay(
-      document: widget.document,
-      fit: widget.fit,
-      alignment: widget.alignment,
-      width: displayWidth,
-      height: widget.height,
-      preview: widget.preview,
+    final child = Container(
+      // Remove the margin, let the parent Padding handle it
+      child: FileDisplay(
+        document: widget.document,
+        fit: widget.fit,
+        alignment: widget.alignment,
+        width: displayWidth,
+        height: widget.height,
+        preview: widget.preview,
+      ),
     );
 
     if (!widget.editable) {
@@ -93,17 +98,20 @@ class _ResizableImageState extends State<ResizableImage> {
     return Stack(
       children: [
         // Main image
-        SizedBox(
-          width: displayWidth,
-          height: widget.height,
-          child: child,
+        Container(
+          margin: EdgeInsets.symmetric(horizontal: 150),
+          child: SizedBox(
+            width: displayWidth,
+            height: widget.height,
+            child: child,
+          ),
         ),
 
         // Left resize handle
         if (widget.alignment != Alignment.centerRight)
           Positioned(
             top: 0,
-            left: -5,
+            left: 150, // Align with the left edge of the SizedBox
             bottom: 0,
             child: _buildResizeHandle(
               isLeft: true,
@@ -122,7 +130,7 @@ class _ResizableImageState extends State<ResizableImage> {
         if (widget.alignment != Alignment.centerLeft)
           Positioned(
             top: 0,
-            right: -5,
+            right: 150, // Align with the right edge of the SizedBox
             bottom: 0,
             child: _buildResizeHandle(
               isLeft: false,
@@ -162,12 +170,16 @@ class _ResizableImageState extends State<ResizableImage> {
           newWidth = distanceFromCenter * 2;
         } else if (isLeft) {
           // For left handle, width is from current position to right edge
-          newWidth = renderBox.size.width - localPosition.dx;
+          newWidth = renderBox.size.width -
+              localPosition.dx +
+              currentWidth -
+              renderBox.size.width;
         } else {
           // For right handle, width is from left edge to current position
           newWidth = localPosition.dx;
         }
 
+        newWidth = max(_kImageBlockComponentMinWidth, newWidth);
         onUpdate(newWidth);
       },
       onHorizontalDragEnd: (details) {
