@@ -17,6 +17,7 @@ class ResizableImage extends StatefulWidget {
     this.preview = false,
     required this.fit,
     required this.isCover,
+    required this.onTap,
   });
 
   final AppDocument document;
@@ -28,12 +29,13 @@ class ResizableImage extends StatefulWidget {
   final void Function(double width) onResize;
   final BoxFit fit;
   final bool isCover;
+  final VoidCallback onTap;
 
   @override
   State<ResizableImage> createState() => _ResizableImageState();
 }
 
-const _kImageBlockComponentMinWidth = 90.0;
+const _kImageBlockComponentMinWidth = 500.0;
 
 class _ResizableImageState extends State<ResizableImage> {
   late double currentWidth;
@@ -58,19 +60,22 @@ class _ResizableImageState extends State<ResizableImage> {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: widget.alignment,
-      child: SizedBox(
-        width: max(_kImageBlockComponentMinWidth, currentWidth),
-        height: widget.height,
-        child: MouseRegion(
-          onEnter: (event) => setState(() {
-            onFocus = true;
-          }),
-          onExit: (event) => setState(() {
-            onFocus = false;
-          }),
-          child: _buildResizableImage(context),
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Align(
+        alignment: widget.alignment,
+        child: SizedBox(
+          width: max(_kImageBlockComponentMinWidth, currentWidth),
+          height: widget.height,
+          child: MouseRegion(
+            onEnter: (event) => setState(() {
+              onFocus = true;
+            }),
+            onExit: (event) => setState(() {
+              onFocus = false;
+            }),
+            child: _buildResizableImage(context),
+          ),
         ),
       ),
     );

@@ -85,7 +85,7 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
     if (isFirstNode && isCoverImage) {
       return EdgeInsets.zero;
     }
-    return const EdgeInsets.symmetric(horizontal: 0);
+    return const EdgeInsets.only(bottom: 200);
   }
 
   @override
@@ -189,27 +189,78 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
         appDocumentMap != null ? AppDocument.fromMap(appDocumentMap) : null;
 
     Widget child = appDocument != null
-        ? ResizableImage(
-            document: appDocument,
-            width: width,
-            height: height,
-            isCover: isCoverImage,
-            fit: fit,
-            alignment: alignment,
-            editable: editorState.editable &&
-                !(isFirstNode &&
-                    isCoverImage), // Disable resize for first cover image
-            onResize: (newWidth) {
-              final transaction = editorState.transaction
-                ..updateNode(node, {
-                  ImageBlockKeys.width: newWidth,
-                });
-              editorState.apply(transaction);
-            },
-          )
+        ? _isPdf(appDocument)
+            ? GestureDetector(
+                onTap: () {
+                  _showPdfPopup(context, node, appDocument);
+                },
+                child: SizedBox(
+                  height: 500,
+                  width: 500,
+                  child: FileDisplay(
+                    document: appDocument,
+                    preview: true,
+                  ),
+                ),
+              )
+            : ResizableImage(
+                document: appDocument,
+                width: width,
+                height: height,
+                isCover: isCoverImage,
+                fit: fit,
+                alignment: alignment,
+                editable: editorState.editable &&
+                    !(isFirstNode &&
+                        isCoverImage), // Disable resize for first cover image
+                onResize: (newWidth) {
+                  final transaction = editorState.transaction
+                    ..updateNode(node, {
+                      ImageBlockKeys.width: newWidth,
+                    });
+                  editorState.apply(transaction);
+                },
+                onTap: () {
+                  _showPdfPopup(context, node, appDocument);
+                },
+              )
         : const Center(child: Text('No image available'));
 
+    // 🚨 Add "Uploading..." overlay if the image is being uploaded
+    if (attributes['isUploading'] == true) {
+      child = Stack(
+        alignment: Alignment.center,
+        children: [
+          child,
+          Container(
+            width: width,
+            height: height ?? 300,
+            color: Colors.black.withOpacity(0.5),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Uploading...",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     // Add cover image overlay for hover actions
+
     if ((isFirstNode && isCoverImage) && editorState.editable) {
       child = _buildCoverImageWithOverlay(child);
     }
@@ -276,6 +327,50 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     }
 
     return child;
+  }
+
+  // Helper method to check if the document is a PDF
+  bool _isPdf(AppDocument document) {
+    final filePath = document.getFileExtension;
+    if (filePath == 'pdf') {
+      return true;
+    }
+    return false;
+  }
+
+  // Method to show the PDF popup
+  void _showPdfPopup(BuildContext context, Node node, AppDocument document) {
+    final noteData =
+        _getNoteDataFromNode(node); // Assume this retrieves note data
+    var popup = Popup(
+      id: '1',
+      onDismiss: () {
+        Provider.of<PopupProvider>(context, listen: false).popPopupStack();
+      },
+      element: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Center(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.8,
+            width: MediaQuery.of(context).size.width * 0.32,
+            child: FileDisplay(
+              document: document,
+              height: MediaQuery.of(context).size.height,
+              width: MediaQuery.of(context).size.width - 200,
+              preview: false,
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+    Provider.of<PopupProvider>(context, listen: false).pushPopupStack = popup;
+  }
+
+  // Placeholder method to get note data from node (implement based on your data model)
+  dynamic _getNoteDataFromNode(Node node) {
+    // This is a placeholder. Replace with actual logic to get noteData from node or context
+    return null; // Example, implement based on your data structure
   }
 
   // Rest of the methods remain unchanged
