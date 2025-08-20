@@ -2,6 +2,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cladbe_shared/cladbe_shared.dart' hide Node;
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 class ImageBlockKeys {
   const ImageBlockKeys._();
@@ -318,7 +319,7 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
               builder: (context, showActions, _) {
                 return Container(
                   color: showActions
-                      ? Colors.black.withOpacity(0.4)
+                      ? Colors.black.withOpacity(0.2)
                       : Colors.transparent,
                   child: showActions
                       ? Center(
@@ -326,7 +327,7 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               _buildCoverButton(
-                                icon: Icons.image,
+                                icon: EvilIcons.image,
                                 label: 'Change Cover',
                                 onTap: _onChangeCover,
                               ),
@@ -365,7 +366,7 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
           decoration: BoxDecoration(
             color: isDestructive
                 ? Colors.red.withOpacity(0.8)
-                : Colors.white.withOpacity(0.9),
+                : AppDefault.backgroundColor,
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
@@ -380,14 +381,14 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
             children: [
               Icon(
                 icon,
-                size: 16,
-                color: isDestructive ? Colors.white : Colors.black87,
+                size: !isDestructive ? 18 : 16,
+                color: isDestructive ? Colors.white : AppDefault.iconGreyColor,
               ),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isDestructive ? Colors.white : Colors.black87,
+                  color: isDestructive ? Colors.white : AppDefault.textColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),

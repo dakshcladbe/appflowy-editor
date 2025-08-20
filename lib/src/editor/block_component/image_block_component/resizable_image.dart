@@ -79,16 +79,13 @@ class _ResizableImageState extends State<ResizableImage> {
   Widget _buildResizableImage(BuildContext context) {
     final displayWidth = max(_kImageBlockComponentMinWidth, currentWidth);
 
-    final child = Container(
-      // Remove the margin, let the parent Padding handle it
-      child: FileDisplay(
-        document: widget.document,
-        fit: widget.fit,
-        alignment: widget.alignment,
-        width: displayWidth,
-        height: widget.height,
-        preview: widget.preview,
-      ),
+    final child = FileDisplay(
+      document: widget.document,
+      fit: widget.fit,
+      alignment: widget.alignment,
+      width: displayWidth,
+      height: widget.height,
+      preview: widget.preview,
     );
 
     if (!widget.editable) {
