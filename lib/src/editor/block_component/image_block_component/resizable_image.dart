@@ -15,6 +15,7 @@ class ResizableImage extends StatefulWidget {
     required this.width,
     this.height,
     this.preview = false,
+    required this.fit,
   });
 
   final AppDocument document;
@@ -24,17 +25,17 @@ class ResizableImage extends StatefulWidget {
   final bool editable;
   final bool preview;
   final void Function(double width) onResize;
+  final BoxFit fit;
 
   @override
   State<ResizableImage> createState() => _ResizableImageState();
 }
 
-const _kImageBlockComponentMinWidth = 30.0;
+const _kImageBlockComponentMinWidth = 90.0;
 
 class _ResizableImageState extends State<ResizableImage> {
-  late double imageWidth;
-  double initialOffset = 0;
-  double moveDistance = 0;
+  late double currentWidth;
+  bool isDragging = false;
 
   @visibleForTesting
   bool onFocus = false;
@@ -42,7 +43,15 @@ class _ResizableImageState extends State<ResizableImage> {
   @override
   void initState() {
     super.initState();
-    imageWidth = widget.width;
+    currentWidth = widget.width;
+  }
+
+  @override
+  void didUpdateWidget(ResizableImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!isDragging) {
+      currentWidth = widget.width;
+    }
   }
 
   @override
@@ -50,7 +59,7 @@ class _ResizableImageState extends State<ResizableImage> {
     return Align(
       alignment: widget.alignment,
       child: SizedBox(
-        width: max(_kImageBlockComponentMinWidth, imageWidth - moveDistance),
+        width: max(_kImageBlockComponentMinWidth, currentWidth),
         height: widget.height,
         child: MouseRegion(
           onEnter: (event) => setState(() {
@@ -66,100 +75,134 @@ class _ResizableImageState extends State<ResizableImage> {
   }
 
   Widget _buildResizableImage(BuildContext context) {
-    // Delegate rendering to FileDisplay
+    final displayWidth = max(_kImageBlockComponentMinWidth, currentWidth);
+
     final child = FileDisplay(
       document: widget.document,
-      fit: BoxFit.contain,
+      fit: widget.fit,
       alignment: widget.alignment,
-      width: max(_kImageBlockComponentMinWidth, imageWidth - moveDistance),
+      width: displayWidth,
       height: widget.height,
       preview: widget.preview,
     );
 
+    if (!widget.editable) {
+      return child;
+    }
+
     return Stack(
       children: [
-        child,
-        if (widget.editable) ...[
-          _buildEdgeGesture(
-            context,
+        // Main image
+        SizedBox(
+          width: displayWidth,
+          height: widget.height,
+          child: child,
+        ),
+
+        // Left resize handle
+        if (widget.alignment != Alignment.centerRight)
+          Positioned(
             top: 0,
-            left: 5,
+            left: -5,
             bottom: 0,
-            width: 5,
-            onUpdate: (distance) {
-              setState(() {
-                moveDistance = distance;
-              });
-            },
+            child: _buildResizeHandle(
+              isLeft: true,
+              onUpdate: (newWidth) {
+                setState(() {
+                  currentWidth = max(_kImageBlockComponentMinWidth, newWidth);
+                });
+              },
+              onEnd: () {
+                widget.onResize(currentWidth);
+              },
+            ),
           ),
-          _buildEdgeGesture(
-            context,
+
+        // Right resize handle
+        if (widget.alignment != Alignment.centerLeft)
+          Positioned(
             top: 0,
-            right: 5,
+            right: -5,
             bottom: 0,
-            width: 5,
-            onUpdate: (distance) {
-              setState(() {
-                moveDistance = -distance;
-              });
-            },
+            child: _buildResizeHandle(
+              isLeft: false,
+              onUpdate: (newWidth) {
+                setState(() {
+                  currentWidth = max(_kImageBlockComponentMinWidth, newWidth);
+                });
+              },
+              onEnd: () {
+                widget.onResize(currentWidth);
+              },
+            ),
           ),
-        ],
       ],
     );
   }
 
-  Widget _buildEdgeGesture(
-    BuildContext context, {
-    double? top,
-    double? left,
-    double? right,
-    double? bottom,
-    double? width,
-    void Function(double distance)? onUpdate,
+  Widget _buildResizeHandle({
+    required bool isLeft,
+    required void Function(double newWidth) onUpdate,
+    required VoidCallback onEnd,
   }) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      bottom: bottom,
-      width: width,
-      child: GestureDetector(
-        onHorizontalDragStart: (details) {
-          initialOffset = details.globalPosition.dx;
-        },
-        onHorizontalDragUpdate: (details) {
-          if (onUpdate != null) {
-            var offset = (details.globalPosition.dx - initialOffset);
-            if (widget.alignment == Alignment.center) {
-              offset *= 2.0;
-            }
-            onUpdate(offset);
-          }
-        },
-        onHorizontalDragEnd: (details) {
-          imageWidth =
-              max(_kImageBlockComponentMinWidth, imageWidth - moveDistance);
-          initialOffset = 0;
-          moveDistance = 0;
-          widget.onResize(imageWidth);
-        },
+    return GestureDetector(
+      onHorizontalDragStart: (details) {
+        isDragging = true;
+      },
+      onHorizontalDragUpdate: (details) {
+        final RenderBox renderBox = context.findRenderObject() as RenderBox;
+        final localPosition = renderBox.globalToLocal(details.globalPosition);
+
+        double newWidth;
+
+        if (widget.alignment == Alignment.center) {
+          // For center alignment, calculate from center
+          final centerX = renderBox.size.width / 2;
+          final distanceFromCenter = (localPosition.dx - centerX).abs();
+          newWidth = distanceFromCenter * 2;
+        } else if (isLeft) {
+          // For left handle, width is from current position to right edge
+          newWidth = renderBox.size.width - localPosition.dx;
+        } else {
+          // For right handle, width is from left edge to current position
+          newWidth = localPosition.dx;
+        }
+
+        onUpdate(newWidth);
+      },
+      onHorizontalDragEnd: (details) {
+        isDragging = false;
+        onEnd();
+      },
+      child: SizedBox(
+        width: 10,
         child: MouseRegion(
           cursor: SystemMouseCursors.resizeLeftRight,
           child: onFocus
               ? Center(
                   child: Container(
+                    width: 4,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.blue.withOpacity(0.8),
                       borderRadius: const BorderRadius.all(
-                        Radius.circular(5.0),
+                        Radius.circular(2.0),
                       ),
                       border: Border.all(width: 1, color: Colors.white),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
                     ),
                   ),
                 )
-              : null,
+              : Container(
+                  width: 10,
+                  color: Colors.transparent,
+                ),
         ),
       ),
     );

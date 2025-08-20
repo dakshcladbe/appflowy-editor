@@ -11,22 +11,46 @@ class ImageBlockKeys {
   static const String appdocument = 'appdocument';
   static const String width = 'width';
   static const String height = 'height';
+  static const String fit = 'fit';
 }
 
 Node imageNode({
-  required AppDocument document,
+  required dynamic document,
   String align = 'center',
-  double? height,
   double? width,
+  double? height,
+  BoxFit fit = BoxFit.cover, // Changed default to BoxFit.cover
+  bool isCover = false, // Add flag for cover images
 }) {
   return Node(
     type: ImageBlockKeys.type,
     attributes: {
-      ImageBlockKeys.appdocument: document.toMap(), // Serialize to map
-      ImageBlockKeys.align: align,
-      ImageBlockKeys.height: height,
-      ImageBlockKeys.width: width,
+      ImageBlockKeys.appdocument:
+          document is AppDocument ? document.toMap() : document,
+      ImageBlockKeys.align:
+          isCover ? 'center' : align, // Force center alignment for cover
+      if (width != null && !isCover)
+        ImageBlockKeys.width: width, // Don't set width for cover
+      if (height != null) ImageBlockKeys.height: height,
+      ImageBlockKeys.fit:
+          fit.toString().split('.').last, // Store as string without 'BoxFit.'
+      if (isCover) 'isCover': true, // Add cover flag to attributes
     },
+  );
+}
+
+// Helper function to create cover image nodes
+Node coverImageNode({
+  required dynamic document,
+  double? height,
+  BoxFit fit = BoxFit.cover,
+}) {
+  return imageNode(
+    document: document,
+    align: 'center',
+    height: height,
+    fit: fit,
+    isCover: true,
   );
 }
 
@@ -34,7 +58,7 @@ typedef ImageBlockComponentMenuBuilder = Widget Function(
   Node node,
   ImageBlockComponentWidgetState state,
 );
-typedef OnImageSelectedCallback = void Function(AppDocument document);
+typedef OnImageSelectedCallback = void Function();
 typedef OnImageUploadCallback = Future<String> Function(String filePath);
 
 class ImageBlockComponentBuilder extends BlockComponentBuilder {
@@ -42,16 +66,11 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
     super.configuration,
     this.showMenu = false,
     this.menuBuilder,
-    this.onSelectedImage, // Add callback for selected image
+    this.onSelectedImage,
   });
 
-  /// Whether to show the menu of this block component.
   final bool showMenu;
-
-  /// Custom menu builder for the image block.
   final ImageBlockComponentMenuBuilder? menuBuilder;
-
-  /// Callback when an image is selected
   final OnImageSelectedCallback? onSelectedImage;
 
   @override
@@ -72,7 +91,7 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
       ),
       showMenu: showMenu,
       menuBuilder: menuBuilder,
-      onSelectedImage: onSelectedImage, // Pass the callback
+      onSelectedImage: onSelectedImage,
     );
   }
 
@@ -117,6 +136,7 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
   late final editorState = Provider.of<EditorState>(context, listen: false);
 
   final showActionsNotifier = ValueNotifier<bool>(false);
+  final showCoverActionsNotifier = ValueNotifier<bool>(false);
 
   bool alwaysShowMenu = false;
 
@@ -127,9 +147,23 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     final alignment = AlignmentExtension.fromString(
       attributes[ImageBlockKeys.align] ?? 'center',
     );
-    final width = attributes[ImageBlockKeys.width]?.toDouble() ??
-        MediaQuery.of(context).size.width;
+
+    // Check if this is the first node (cover image) or explicitly marked as cover
+    final isFirstNode = node.path.isNotEmpty && node.path.first == 0;
+    final isCoverImage = attributes['isCover'] == true || isFirstNode;
+
+    // For cover images, use full screen width, otherwise use configured width
+    final width = isCoverImage
+        ? MediaQuery.of(context).size.width
+        : (attributes[ImageBlockKeys.width]?.toDouble() ??
+            (MediaQuery.of(context).size.width -
+                configuration.padding(node).horizontal));
+
     final height = attributes[ImageBlockKeys.height]?.toDouble();
+
+    // Improved BoxFit parsing
+    final fitString = attributes[ImageBlockKeys.fit] as String? ?? 'cover';
+    BoxFit fit = _parseBoxFit(fitString);
 
     // Reconstruct AppDocument from serialized map
     final appDocumentMap =
@@ -142,8 +176,10 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
             document: appDocument,
             width: width,
             height: height,
+            fit: fit,
             alignment: alignment,
-            editable: editorState.editable,
+            editable: editorState.editable &&
+                !isCoverImage, // Disable resize for cover images
             onResize: (newWidth) {
               final transaction = editorState.transaction
                 ..updateNode(node, {
@@ -154,11 +190,28 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
           )
         : const Center(child: Text('No image available'));
 
-    child = Padding(
-      key: imageKey,
-      padding: padding,
-      child: child,
-    );
+    // Add cover image overlay for hover actions
+    if (isCoverImage && editorState.editable) {
+      child = _buildCoverImageWithOverlay(child);
+    }
+
+    // For cover images, override global padding with negative margin
+    if (isCoverImage) {
+      child = Transform.translate(
+        offset: const Offset(-150, 0), // Offset by negative padding amount
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width,
+          child: child,
+        ),
+      );
+    } else {
+      // For regular images, apply normal padding
+      child = Padding(
+        key: imageKey,
+        padding: configuration.padding(node),
+        child: child,
+      );
+    }
 
     child = BlockSelectionContainer(
       node: node,
@@ -215,6 +268,151 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     }
 
     return child;
+  }
+
+  /// Helper method to parse BoxFit from string
+  BoxFit _parseBoxFit(String fitString) {
+    switch (fitString.toLowerCase()) {
+      case 'fill':
+        return BoxFit.fill;
+      case 'contain':
+        return BoxFit.contain;
+      case 'cover':
+        return BoxFit.cover;
+      case 'fitheight':
+        return BoxFit.fitHeight;
+      case 'fitwidth':
+        return BoxFit.fitWidth;
+      case 'none':
+        return BoxFit.none;
+      case 'scaledown':
+        return BoxFit.scaleDown;
+      default:
+        return BoxFit.cover; // Default fallback
+    }
+  }
+
+  /// Build cover image with hover overlay
+  Widget _buildCoverImageWithOverlay(Widget imageChild) {
+    return Stack(
+      children: [
+        imageChild,
+        // Always visible overlay for testing
+        Positioned.fill(
+          child: MouseRegion(
+            onEnter: (_) {
+              print('Cover image hover ENTER');
+              showCoverActionsNotifier.value = true;
+            },
+            onExit: (_) {
+              print('Cover image hover EXIT');
+              showCoverActionsNotifier.value = false;
+            },
+            child: ValueListenableBuilder<bool>(
+              valueListenable: showCoverActionsNotifier,
+              builder: (context, showActions, _) {
+                return Container(
+                  color: showActions
+                      ? Colors.black.withOpacity(0.4)
+                      : Colors.transparent,
+                  child: showActions
+                      ? Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildCoverButton(
+                                icon: Icons.image,
+                                label: 'Change Cover',
+                                onTap: _onChangeCover,
+                              ),
+                              const SizedBox(width: 16),
+                              _buildCoverButton(
+                                icon: Icons.delete,
+                                label: 'Delete',
+                                onTap: _onDeleteCover,
+                                isDestructive: true,
+                              ),
+                            ],
+                          ),
+                        )
+                      : null,
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build individual cover action button
+  Widget _buildCoverButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDestructive
+                ? Colors.red.withOpacity(0.8)
+                : Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isDestructive ? Colors.white : Colors.black87,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isDestructive ? Colors.white : Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Handle change cover action
+  void _onChangeCover() {
+    // Call the callback if provided
+    if (widget.onSelectedImage != null) {
+      // You might want to show a file picker here and then call:
+      widget.onSelectedImage!();
+    }
+
+    // Or you could trigger a custom event or show a dialog
+    // For now, let's just print for demonstration
+    print('Change cover image requested');
+  }
+
+  /// Handle delete cover action
+  void _onDeleteCover() {
+    // Remove the cover image node
+    final transaction = editorState.transaction..deleteNode(widget.node);
+    editorState.apply(transaction);
   }
 
   @override
