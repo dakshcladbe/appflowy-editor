@@ -137,7 +137,10 @@ Widget _menuItem(
       onPressed: () {
         action();
       },
-      icon: Icon(icon, color: Theme.of(context).iconTheme.color),
+      icon: Icon(
+        icon,
+        color: Color(0xFFBBC3CD),
+      ),
       style: buildOverlayButtonStyle(context),
       label: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -149,7 +152,7 @@ Widget _menuItem(
               maxLines: 1,
               overflow: TextOverflow.fade,
               style: TextStyle(
-                color: Theme.of(context).textTheme.labelLarge?.color,
+                color: Color(0xFFBBC3CD),
               ),
             ),
           ),

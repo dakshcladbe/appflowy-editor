@@ -16,7 +16,7 @@ export 'src/editor/selection_menu/selection_menu.dart';
 export 'src/editor_state.dart';
 // extension
 export 'src/extensions/extensions.dart';
-export 'src/infra/clipboard.dart';
+export 'src/infra/clipboard.dart' hide copyCommand;
 export 'src/infra/flowy_svg.dart';
 export 'src/infra/log.dart';
 export 'src/infra/mobile/mobile.dart';

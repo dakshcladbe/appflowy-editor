@@ -203,30 +203,59 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
                   ),
                 ),
               )
-            : ResizableImage(
-                document: appDocument,
-                width: width,
-                height: height,
-                isCover: isCoverImage,
-                fit: fit,
-                alignment: alignment,
-                editable: editorState.editable &&
-                    !(isFirstNode &&
-                        isCoverImage), // Disable resize for first cover image
-                onResize: (newWidth) {
-                  final transaction = editorState.transaction
-                    ..updateNode(node, {
-                      ImageBlockKeys.width: newWidth,
-                    });
-                  editorState.apply(transaction);
-                },
-                onTap: () {
-                  _showPdfPopup(context, node, appDocument);
-                },
-              )
+            : _isVideo(appDocument)
+                ? Container(
+                    // Only constrain videos to prevent infinite height
+                    constraints: BoxConstraints(
+                      maxWidth: width,
+                      maxHeight:
+                          height ?? MediaQuery.of(context).size.height * 0.6,
+                    ),
+                    child: ResizableImage(
+                      document: appDocument,
+                      width: width,
+                      height: height,
+                      isCover: isCoverImage,
+                      fit: fit,
+                      alignment: alignment,
+                      editable: editorState.editable &&
+                          !(isFirstNode && isCoverImage),
+                      onResize: (newWidth) {
+                        final transaction = editorState.transaction
+                          ..updateNode(node, {
+                            ImageBlockKeys.width: newWidth,
+                          });
+                        editorState.apply(transaction);
+                      },
+                      onTap: () {
+                        _showPdfPopup(context, node, appDocument);
+                      },
+                    ),
+                  )
+                : ResizableImage(
+                    // Regular images without height constraints
+                    document: appDocument,
+                    width: width,
+                    height: height,
+                    isCover: isCoverImage,
+                    fit: fit,
+                    alignment: alignment,
+                    editable:
+                        editorState.editable && !(isFirstNode && isCoverImage),
+                    onResize: (newWidth) {
+                      final transaction = editorState.transaction
+                        ..updateNode(node, {
+                          ImageBlockKeys.width: newWidth,
+                        });
+                      editorState.apply(transaction);
+                    },
+                    onTap: () {
+                      _showPdfPopup(context, node, appDocument);
+                    },
+                  )
         : const Center(child: Text('No image available'));
 
-    // 🚨 Add "Uploading..." overlay if the image is being uploaded
+    // Add "Uploading..." overlay if the image is being uploaded
     if (attributes['isUploading'] == true) {
       child = Stack(
         alignment: Alignment.center,
@@ -260,7 +289,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     }
 
     // Add cover image overlay for hover actions
-
     if ((isFirstNode && isCoverImage) && editorState.editable) {
       child = _buildCoverImageWithOverlay(child);
     }
@@ -336,6 +364,12 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
       return true;
     }
     return false;
+  } // Helper method to check if the document is a video
+
+  bool _isVideo(AppDocument document) {
+    final extension = document.getFileExtension.toLowerCase();
+    return ['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', '3gp']
+        .contains(extension);
   }
 
   // Method to show the PDF popup

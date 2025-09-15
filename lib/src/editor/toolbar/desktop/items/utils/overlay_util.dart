@@ -6,7 +6,7 @@ ButtonStyle buildOverlayButtonStyle(BuildContext context) {
     backgroundColor: WidgetStateProperty.resolveWith<Color>(
       (Set<WidgetState> states) {
         if (states.contains(WidgetState.hovered)) {
-          return Theme.of(context).hoverColor;
+          return Color(0xFF7578CD);
         }
         return Colors.transparent;
       },
@@ -16,7 +16,7 @@ ButtonStyle buildOverlayButtonStyle(BuildContext context) {
 
 BoxDecoration buildOverlayDecoration(BuildContext context) {
   return BoxDecoration(
-    color: Theme.of(context).cardColor,
+    color: Color(0xFF282E3A),
     borderRadius: BorderRadius.circular(6),
     boxShadow: [
       BoxShadow(
