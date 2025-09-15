@@ -20,27 +20,23 @@ Node imageNode({
   String align = 'center',
   double? width,
   double? height,
-  BoxFit fit = BoxFit.cover, // Changed default to BoxFit.cover
-  bool isCover = false, // Add flag for cover images
+  BoxFit fit = BoxFit.cover,
+  bool isCover = false,
 }) {
   return Node(
     type: ImageBlockKeys.type,
     attributes: {
       ImageBlockKeys.appdocument:
           document is AppDocument ? document.toMap() : document,
-      ImageBlockKeys.align:
-          isCover ? 'center' : align, // Force center alignment for cover
-      if (width != null && !isCover)
-        ImageBlockKeys.width: width, // Don't set width for cover
+      ImageBlockKeys.align: isCover ? 'center' : align,
+      if (width != null && !isCover) ImageBlockKeys.width: width,
       if (height != null) ImageBlockKeys.height: height,
-      ImageBlockKeys.fit:
-          fit.toString().split('.').last, // Store as string without 'BoxFit.'
-      if (isCover) 'isCover': true, // Add cover flag to attributes
+      ImageBlockKeys.fit: fit.toString().split('.').last,
+      if (isCover) 'isCover': true,
     },
   );
 }
 
-// Helper function to create cover image nodes
 Node coverImageNode({
   required dynamic document,
   double? height,
@@ -65,7 +61,7 @@ typedef OnImageUploadCallback = Future<String> Function(String filePath);
 class ImageBlockComponentBuilder extends BlockComponentBuilder {
   ImageBlockComponentBuilder({
     super.configuration = const BlockComponentConfiguration(
-      padding: _customPadding, // Custom padding function
+      padding: _customPadding,
     ),
     this.showMenu = false,
     this.menuBuilder,
@@ -76,16 +72,14 @@ class ImageBlockComponentBuilder extends BlockComponentBuilder {
   final ImageBlockComponentMenuBuilder? menuBuilder;
   final OnImageSelectedCallback? onSelectedImage;
 
-  // Custom padding function
   static EdgeInsets _customPadding(Node node) {
     final isFirstNode = node.path.isNotEmpty && node.path.first == 0;
     final isCoverImage = node.attributes['isCover'] == true;
 
-    // Set padding to 0 only for the first node that is a cover image
     if (isFirstNode && isCoverImage) {
       return EdgeInsets.zero;
     }
-    return const EdgeInsets.only(bottom: 200);
+    return const EdgeInsets.only(bottom: 16.0);
   }
 
   @override
@@ -152,8 +146,17 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
 
   final showActionsNotifier = ValueNotifier<bool>(false);
   final showCoverActionsNotifier = ValueNotifier<bool>(false);
+  final showDeleteButtonNotifier = ValueNotifier<bool>(false);
 
   bool alwaysShowMenu = false;
+
+  @override
+  void dispose() {
+    showActionsNotifier.dispose();
+    showCoverActionsNotifier.dispose();
+    showDeleteButtonNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,26 +166,21 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
       attributes[ImageBlockKeys.align] ?? 'center',
     );
 
-    // Check if this is the first node or cover image
     final isFirstNode = node.path.isNotEmpty && node.path.first == 0;
     final isCoverImage = attributes['isCover'] == true;
 
-    // Get padding from configuration
     final padding = configuration.padding(node);
     final horizontalPadding = padding.horizontal;
 
-    // Calculate width based on whether it's the first cover image
     final width = (isFirstNode && isCoverImage)
         ? MediaQuery.of(context).size.width
         : (attributes[ImageBlockKeys.width]?.toDouble() ??
             (MediaQuery.of(context).size.width - horizontalPadding));
     final height = attributes[ImageBlockKeys.height]?.toDouble();
 
-    // Improved BoxFit parsing
     final fitString = attributes[ImageBlockKeys.fit] as String? ?? 'cover';
     BoxFit fit = _parseBoxFit(fitString);
 
-    // Reconstruct AppDocument from serialized map
     final appDocumentMap =
         attributes[ImageBlockKeys.appdocument] as Map<String, dynamic>?;
     final appDocument =
@@ -205,7 +203,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
               )
             : _isVideo(appDocument)
                 ? Container(
-                    // Only constrain videos to prevent infinite height
                     constraints: BoxConstraints(
                       maxWidth: width,
                       maxHeight:
@@ -233,7 +230,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
                     ),
                   )
                 : ResizableImage(
-                    // Regular images without height constraints
                     document: appDocument,
                     width: width,
                     height: height,
@@ -255,7 +251,6 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
                   )
         : const Center(child: Text('No image available'));
 
-    // Add "Uploading..." overlay if the image is being uploaded
     if (attributes['isUploading'] == true) {
       child = Stack(
         alignment: Alignment.center,
@@ -265,15 +260,15 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
             width: width,
             height: height ?? 300,
             color: Colors.black.withOpacity(0.5),
-            child: Column(
+            child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const CircularProgressIndicator(
+                CircularProgressIndicator(
                   strokeWidth: 3,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-                const SizedBox(height: 12),
-                const Text(
+                SizedBox(height: 12),
+                Text(
                   "Uploading...",
                   style: TextStyle(
                     color: Colors.white,
@@ -288,17 +283,65 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
       );
     }
 
-    // Add cover image overlay for hover actions
     if ((isFirstNode && isCoverImage) && editorState.editable) {
       child = _buildCoverImageWithOverlay(child);
     }
 
-    // Apply padding from configuration
     child = Padding(
       key: imageKey,
       padding: padding,
       child: child,
     );
+
+    // Add delete button overlay for all images/videos on hover (except cover images)
+    if (editorState.editable && !isCoverImage) {
+      child = MouseRegion(
+        onEnter: (_) => showDeleteButtonNotifier.value = true,
+        onExit: (_) => showDeleteButtonNotifier.value = false,
+        child: Stack(
+          children: [
+            child,
+            ValueListenableBuilder<bool>(
+              valueListenable: showDeleteButtonNotifier,
+              builder: (context, showDelete, _) {
+                return showDelete
+                    ? Positioned(
+                        top: 8,
+                        right: 8,
+                        child: GestureDetector(
+                          onTap: () {
+                            final transaction = editorState.transaction
+                              ..deleteNode(widget.node);
+                            editorState.apply(transaction);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.8),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_outlined,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
+      );
+    }
 
     child = BlockSelectionContainer(
       node: node,
@@ -357,14 +400,13 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     return child;
   }
 
-  // Helper method to check if the document is a PDF
   bool _isPdf(AppDocument document) {
     final filePath = document.getFileExtension;
     if (filePath == 'pdf') {
       return true;
     }
     return false;
-  } // Helper method to check if the document is a video
+  }
 
   bool _isVideo(AppDocument document) {
     final extension = document.getFileExtension.toLowerCase();
@@ -372,10 +414,8 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
         .contains(extension);
   }
 
-  // Method to show the PDF popup
   void _showPdfPopup(BuildContext context, Node node, AppDocument document) {
-    final noteData =
-        _getNoteDataFromNode(node); // Assume this retrieves note data
+    final noteData = _getNoteDataFromNode(node);
     var popup = Popup(
       id: '1',
       onDismiss: () {
@@ -401,13 +441,10 @@ class ImageBlockComponentWidgetState extends State<ImageBlockComponentWidget>
     Provider.of<PopupProvider>(context, listen: false).pushPopupStack = popup;
   }
 
-  // Placeholder method to get note data from node (implement based on your data model)
   dynamic _getNoteDataFromNode(Node node) {
-    // This is a placeholder. Replace with actual logic to get noteData from node or context
-    return null; // Example, implement based on your data structure
+    return null;
   }
 
-  // Rest of the methods remain unchanged
   BoxFit _parseBoxFit(String fitString) {
     switch (fitString.toLowerCase()) {
       case 'fill':
